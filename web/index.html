@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImgBed - 图床管理</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                </div>
+                <div class="brand">
+                    <h1>ImgBed</h1>
+                    <span class="subtitle">轻量图床服务</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="stats" id="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="statCount">0</div>
+                        <div class="stat-label">图片数量</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="statSize">0 B</div>
+                        <div class="stat-label">占用空间</div>
+                    </div>
+                </div>
+                <button class="btn-icon" id="settingsBtn" title="设置">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <section class="upload-section">
+            <div class="upload-box" id="uploadBox">
+                <input type="file" id="fileInput" accept="image/*" multiple hidden>
+                <div class="upload-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                </div>
+                <div class="upload-hint">
+                    <h3>拖拽图片到此处上传</h3>
+                    <p>或点击选择文件</p>
+                </div>
+                <div class="upload-tips">
+                    <span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        Ctrl+V 粘贴上传
+                    </span>
+                    <span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        支持批量上传
+                    </span>
+                </div>
+                <div class="upload-progress" id="uploadProgress"></div>
+            </div>
+        </section>
+
+        <section class="toolbar">
+            <div class="search-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input type="text" id="searchInput" placeholder="搜索图片...">
+            </div>
+            <div class="toolbar-actions">
+                <button class="btn-secondary" id="selectModeBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 11 12 14 22 4"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                    多选
+                </button>
+                <select id="sortSelect">
+                    <option value="newest">最新上传</option>
+                    <option value="oldest">最早上传</option>
+                    <option value="largest">文件最大</option>
+                    <option value="smallest">文件最小</option>
+                </select>
+                <button class="btn-secondary" id="refreshBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    刷新
+                </button>
+            </div>
+        </section>
+
+        <section class="batch-toolbar" id="batchToolbar" style="display: none;">
+            <div class="batch-info">
+                <span>已选择 <strong id="selectedCount">0</strong> 张图片</span>
+            </div>
+            <div class="batch-actions">
+                <button class="btn-secondary" id="selectAllBtn">全选</button>
+                <button class="btn-secondary" id="deselectAllBtn">取消全选</button>
+                <button class="btn-danger" id="batchDeleteBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    删除选中
+                </button>
+                <button class="btn-secondary" id="cancelSelectBtn">退出多选</button>
+            </div>
+        </section>
+
+        <section class="gallery">
+            <div class="gallery-header">
+                <h2>图片列表</h2>
+                <span class="image-count" id="imageCount"></span>
+            </div>
+            <div class="image-grid" id="imageGrid"></div>
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <div class="icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                </div>
+                <h3>暂无图片</h3>
+                <p>上传第一张图片开始使用</p>
+            </div>
+            <button class="load-more" id="loadMore">加载更多</button>
+        </section>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content settings-modal">
+            <div class="modal-header">
+                <h3>设置</h3>
+                <button class="close" id="closeSettings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>认证令牌 (Auth Token)</label>
+                    <div class="input-group">
+                        <input type="password" id="tokenInput" placeholder="输入你的 Token">
+                        <button class="btn-icon" id="toggleToken" title="显示/隐藏">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <span class="form-hint">用于上传和删除图片的认证令牌</span>
+                </div>
+                <div class="form-group">
+                    <label>默认复制格式</label>
+                    <select id="defaultFormat">
+                        <option value="url">直接链接</option>
+                        <option value="markdown">Markdown</option>
+                        <option value="html">HTML</option>
+                        <option value="bbcode">BBCode</option>
+                    </select>
+                </div>
+                <button class="btn-primary" id="saveSettings" style="width: 100%;">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片详情弹窗 -->
+    <div class="modal" id="imageModal">
+        <div class="modal-content image-modal">
+            <button class="close" id="closeModal" style="position: absolute; top: 16px; right: 16px; z-index: 10;">&times;</button>
+            <div class="image-preview">
+                <img id="modalImage" src="" alt="">
+            </div>
+            <div class="image-details">
+                <div class="image-info">
+                    <div class="info-item">
+                        <span class="info-label">文件名</span>
+                        <span class="info-value" id="infoFilename"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">文件大小</span>
+                        <span class="info-value" id="infoSize"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">上传时间</span>
+                        <span class="info-value" id="infoDate"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">图片尺寸</span>
+                        <span class="info-value" id="infoDimensions"></span>
+                    </div>
+                </div>
+                <div class="link-formats">
+                    <div class="format-item">
+                        <label>直接链接</label>
+                        <div class="input-group">
+                            <input type="text" id="urlDirect" readonly>
+                            <button class="btn-copy" data-target="urlDirect">复制</button>
+                        </div>
+                    </div>
+                    <div class="format-item">
+                        <label>Markdown</label>
+                        <div class="input-group">
+                            <input type="text" id="urlMarkdown" readonly>
+                            <button class="btn-copy" data-target="urlMarkdown">复制</button>
+                        </div>
+                    </div>
+                    <div class="format-item">
+                        <label>HTML</label>
+                        <div class="input-group">
+                            <input type="text" id="urlHtml" readonly>
+                            <button class="btn-copy" data-target="urlHtml">复制</button>
+                        </div>
+                    </div>
+                    <div class="format-item">
+                        <label>BBCode</label>
+                        <div class="input-group">
+                            <input type="text" id="urlBbcode" readonly>
+                            <button class="btn-copy" data-target="urlBbcode">复制</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" id="copyDefault">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        复制链接
+                    </button>
+                    <button class="btn-danger" id="deleteImage">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        删除
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+services:
+  imgbed:
+    build: .
+    container_name: imgbed
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTH_TOKEN=your-secret-token-here
+      - BASE_URL=
+    volumes:
+      - ./data:/app/data
