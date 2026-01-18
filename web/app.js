@@ -42,6 +42,7 @@
     const infoSize = $('infoSize');
     const infoDate = $('infoDate');
     const infoDimensions = $('infoDimensions');
+    const infoHash = $('infoHash');
     const urlDirect = $('urlDirect');
     const urlMarkdown = $('urlMarkdown');
     const urlHtml = $('urlHtml');
@@ -477,13 +478,19 @@
             throw new Error(data.error);
         }
 
-        showToast('上传成功: ' + data.filename);
+        // 检查是否是重复文件
+        if (data.duplicate) {
+            showToast('⚠️ 文件已存在，返回已有链接', 3000);
+        } else {
+            showToast('上传成功: ' + data.filename);
+        }
 
-        // Add to local list
+        // Add to local list (include hash)
         allImages.unshift({
             id: data.id,
             filename: data.filename,
             original_name: data.original_name,
+            hash: data.hash,
             size: data.size,
             created_at: new Date().toISOString()
         });
@@ -508,6 +515,7 @@
         infoFilename.textContent = displayName;
         infoSize.textContent = formatSize(img.size);
         infoDate.textContent = formatFullDate(img.created_at);
+        infoHash.textContent = img.hash || 'N/A';
 
         urlDirect.value = url;
         urlMarkdown.value = `![${displayName}](${url})`;

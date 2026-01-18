@@ -11,6 +11,7 @@ type Image struct {
 	ID           string    `json:"id"`
 	Filename     string    `json:"filename"`
 	OriginalName string    `json:"original_name"`
+	Hash         string    `json:"hash"`
 	Size         int64     `json:"size"`
 	MimeType     string    `json:"mime_type"`
 	CreatedAt    time.Time `json:"created_at"`
@@ -44,11 +45,13 @@ func (db *DB) migrate() error {
 		id TEXT PRIMARY KEY,
 		filename TEXT NOT NULL,
 		original_name TEXT DEFAULT '',
+		hash TEXT DEFAULT '',
 		size INTEGER NOT NULL,
 		mime_type TEXT NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE INDEX IF NOT EXISTS idx_created_at ON images(created_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_hash ON images(hash);
 	`
 	_, err := db.conn.Exec(query)
 	if err != nil {
@@ -57,13 +60,15 @@ func (db *DB) migrate() error {
 
 	// 添加 original_name 列（如果不存在）
 	db.conn.Exec("ALTER TABLE images ADD COLUMN original_name TEXT DEFAULT ''")
+	// 添加 hash 列（如果不存在）
+	db.conn.Exec("ALTER TABLE images ADD COLUMN hash TEXT DEFAULT ''")
 	return nil
 }
 
 func (db *DB) SaveImage(img *Image) error {
 	_, err := db.conn.Exec(
-		"INSERT INTO images (id, filename, original_name, size, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-		img.ID, img.Filename, img.OriginalName, img.Size, img.MimeType, img.CreatedAt,
+		"INSERT INTO images (id, filename, original_name, hash, size, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		img.ID, img.Filename, img.OriginalName, img.Hash, img.Size, img.MimeType, img.CreatedAt,
 	)
 	return err
 }
@@ -71,9 +76,21 @@ func (db *DB) SaveImage(img *Image) error {
 func (db *DB) GetImage(id string) (*Image, error) {
 	img := &Image{}
 	err := db.conn.QueryRow(
-		"SELECT id, filename, COALESCE(original_name, '') as original_name, size, mime_type, created_at FROM images WHERE id = ?",
+		"SELECT id, filename, COALESCE(original_name, '') as original_name, COALESCE(hash, '') as hash, size, mime_type, created_at FROM images WHERE id = ?",
 		id,
-	).Scan(&img.ID, &img.Filename, &img.OriginalName, &img.Size, &img.MimeType, &img.CreatedAt)
+	).Scan(&img.ID, &img.Filename, &img.OriginalName, &img.Hash, &img.Size, &img.MimeType, &img.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return img, nil
+}
+
+func (db *DB) GetImageByHash(hash string) (*Image, error) {
+	img := &Image{}
+	err := db.conn.QueryRow(
+		"SELECT id, filename, COALESCE(original_name, '') as original_name, COALESCE(hash, '') as hash, size, mime_type, created_at FROM images WHERE hash = ? LIMIT 1",
+		hash,
+	).Scan(&img.ID, &img.Filename, &img.OriginalName, &img.Hash, &img.Size, &img.MimeType, &img.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +99,7 @@ func (db *DB) GetImage(id string) (*Image, error) {
 
 func (db *DB) ListImages(limit, offset int) ([]Image, error) {
 	rows, err := db.conn.Query(
-		"SELECT id, filename, COALESCE(original_name, '') as original_name, size, mime_type, created_at FROM images ORDER BY created_at DESC LIMIT ? OFFSET ?",
+		"SELECT id, filename, COALESCE(original_name, '') as original_name, COALESCE(hash, '') as hash, size, mime_type, created_at FROM images ORDER BY created_at DESC LIMIT ? OFFSET ?",
 		limit, offset,
 	)
 	if err != nil {
@@ -93,7 +110,7 @@ func (db *DB) ListImages(limit, offset int) ([]Image, error) {
 	var images []Image
 	for rows.Next() {
 		var img Image
-		if err := rows.Scan(&img.ID, &img.Filename, &img.OriginalName, &img.Size, &img.MimeType, &img.CreatedAt); err != nil {
+		if err := rows.Scan(&img.ID, &img.Filename, &img.OriginalName, &img.Hash, &img.Size, &img.MimeType, &img.CreatedAt); err != nil {
 			return nil, err
 		}
 		images = append(images, img)

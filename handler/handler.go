@@ -2,6 +2,7 @@ package handler
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -49,14 +50,49 @@ func (h *Handler) Upload(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "unsupported file type"})
 	}
 
-	id := generateID()
-	filename := id + ext
-
+	// 打开文件计算 hash
 	src, err := file.Open()
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to read file"})
 	}
 	defer src.Close()
+
+	// 计算 SHA256 hash
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, src); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to calculate hash"})
+	}
+	fileHash := hex.EncodeToString(hasher.Sum(nil))
+
+	// 检查是否已存在相同 hash 的文件
+	existingImg, err := h.db.GetImageByHash(fileHash)
+	if err == nil && existingImg != nil {
+		// 文件已存在，直接返回现有的 URL
+		baseURL := h.cfg.BaseURL
+		if baseURL == "" {
+			baseURL = c.Protocol() + "://" + c.Hostname()
+		}
+
+		return c.JSON(fiber.Map{
+			"id":            existingImg.ID,
+			"url":           fmt.Sprintf("%s/i/%s", baseURL, existingImg.Filename),
+			"filename":      existingImg.Filename,
+			"original_name": file.Filename,
+			"hash":          fileHash,
+			"size":          file.Size,
+			"duplicate":     true,
+		})
+	}
+
+	// 重新打开文件进行保存
+	src, err = file.Open()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to read file"})
+	}
+	defer src.Close()
+
+	id := generateID()
+	filename := id + ext
 
 	dstPath := filepath.Join(h.cfg.UploadDir, filename)
 	dst, err := os.Create(dstPath)
@@ -74,6 +110,7 @@ func (h *Handler) Upload(c *fiber.Ctx) error {
 		ID:           id,
 		Filename:     filename,
 		OriginalName: file.Filename,
+		Hash:         fileHash,
 		Size:         file.Size,
 		MimeType:     contentType,
 		CreatedAt:    time.Now(),
@@ -94,7 +131,9 @@ func (h *Handler) Upload(c *fiber.Ctx) error {
 		"url":           fmt.Sprintf("%s/i/%s", baseURL, filename),
 		"filename":      filename,
 		"original_name": file.Filename,
+		"hash":          fileHash,
 		"size":          file.Size,
+		"duplicate":     false,
 	})
 }
 
