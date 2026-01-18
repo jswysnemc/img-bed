@@ -734,9 +734,29 @@ header {
 }
 
 /* Settings Modal */
+.login-modal,
 .settings-modal {
     width: 100%;
     max-width: 420px;
+}
+
+.login-modal input[type="password"],
+.login-modal input[type="text"] {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--ink-primary);
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.login-modal input:focus {
+    border-color: var(--ink-tertiary);
+    background: var(--bg-card);
 }
 
 .form-group {
