@@ -33,3 +33,4 @@ build/
 # Environment
 .env
 .env.local
+.marscode/

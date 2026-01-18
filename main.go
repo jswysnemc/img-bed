@@ -49,11 +49,14 @@ func main() {
 
 	// API routes
 	api := app.Group("/api")
-	api.Get("/stats", h.Stats)
-	api.Get("/images", h.List)
 
-	// Protected routes
+	// Public login endpoint
+	api.Post("/login", h.Login)
+
+	// Protected routes - require authentication
 	protected := api.Group("", middleware.Auth(cfg.AuthToken))
+	protected.Get("/stats", h.Stats)
+	protected.Get("/images", h.List)
 	protected.Post("/upload", h.Upload)
 	protected.Delete("/images/:id", h.Delete)
 

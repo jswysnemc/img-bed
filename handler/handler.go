@@ -160,6 +160,25 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"success": true})
 }
 
+func (h *Handler) Login(c *fiber.Ctx) error {
+	var req struct {
+		Token string `json:"token"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	if req.Token != h.cfg.AuthToken {
+		return c.Status(401).JSON(fiber.Map{"error": "invalid token"})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"token":   req.Token,
+	})
+}
+
 func (h *Handler) Stats(c *fiber.Ctx) error {
 	count, _ := h.db.Count()
 	size, _ := h.db.TotalSize()

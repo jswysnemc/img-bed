@@ -1,7 +1,17 @@
 (function() {
     const $ = id => document.getElementById(id);
 
+    // Auth
+    const AUTH_KEY = 'imgbed_token';
+    let authToken = localStorage.getItem(AUTH_KEY);
+
     // Elements
+    const loginModal = $('loginModal');
+    const loginForm = $('loginForm');
+    const tokenInput = $('tokenInput');
+    const mainContent = $('mainContent');
+    const logoutBtn = $('logoutBtn');
+
     const uploadBox = $('uploadBox');
     const fileInput = $('fileInput');
     const uploadProgress = $('uploadProgress');
@@ -59,7 +69,7 @@
 
     // Storage helpers
     function getToken() {
-        return localStorage.getItem('imgbed_token') || '';
+        return authToken || '';
     }
 
     function setToken(token) {
@@ -115,10 +125,61 @@
         });
     }
 
+    // Auth
+    async function login(token) {
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                authToken = token;
+                localStorage.setItem(AUTH_KEY, token);
+                loginModal.classList.remove('active');
+                mainContent.style.display = 'block';
+                init();
+                showToast('登录成功');
+            } else {
+                showToast(data.error || '登录失败，令牌无效');
+            }
+        } catch (e) {
+            showToast('登录失败，请检查网络连接');
+        }
+    }
+
+    function logout() {
+        authToken = null;
+        localStorage.removeItem(AUTH_KEY);
+        loginModal.classList.add('active');
+        mainContent.style.display = 'none';
+        showToast('已退出登录');
+    }
+
+    function checkAuth() {
+        if (authToken) {
+            loginModal.classList.remove('active');
+            mainContent.style.display = 'block';
+            init();
+        } else {
+            loginModal.classList.add('active');
+            mainContent.style.display = 'none';
+        }
+    }
+
     // API
     async function loadStats() {
         try {
-            const res = await fetch('/api/stats');
+            const res = await fetch('/api/stats', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.status === 401) {
+                logout();
+                return;
+            }
             const data = await res.json();
             statCount.textContent = data.count;
             statSize.textContent = formatSize(data.total_size);
@@ -129,7 +190,13 @@
 
     async function loadAllImages() {
         try {
-            const res = await fetch('/api/images?limit=1000&offset=0');
+            const res = await fetch('/api/images?limit=1000&offset=0', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.status === 401) {
+                logout();
+                return;
+            }
             allImages = await res.json() || [];
             applyFilters();
         } catch (e) {
@@ -616,6 +683,23 @@
         }
     };
 
+    // Login/Logout
+    loginForm.onsubmit = (e) => {
+        e.preventDefault();
+        const token = tokenInput.value.trim();
+        if (token) {
+            login(token);
+        } else {
+            showToast('请输入访问令牌');
+        }
+    };
+
+    logoutBtn.onclick = () => {
+        if (confirm('确定要退出登录吗？')) {
+            logout();
+        }
+    };
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -628,14 +712,12 @@
         }
     });
 
-    // Init
-    loadStats();
-    loadAllImages();
-
-    // Show hint if no token
-    if (!getToken()) {
-        setTimeout(() => {
-            showToast('请点击右上角设置按钮配置认证令牌', 4000);
-        }, 1000);
+    // Init function
+    function init() {
+        loadStats();
+        loadAllImages();
     }
+
+    // Check auth on load
+    checkAuth();
 })();
