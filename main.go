@@ -63,6 +63,7 @@ func main() {
 	protected.Get("/images", h.List)
 	protected.Post("/upload", h.Upload)
 	protected.Delete("/images/:id", h.Delete)
+	protected.Put("/config", h.UpdateConfig)
 
 	// Serve uploaded images
 	app.Get("/i/:filename", h.GetImage)

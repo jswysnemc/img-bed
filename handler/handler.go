@@ -44,7 +44,14 @@ func (h *Handler) Upload(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "no file provided"})
 	}
 
-	if file.Size > h.cfg.MaxSize {
+	// Get max size from database config
+	cfg, err := h.db.GetConfig()
+	maxSize := h.cfg.MaxSize // fallback to env config
+	if err == nil && cfg.MaxSize > 0 {
+		maxSize = cfg.MaxSize
+	}
+
+	if file.Size > maxSize {
 		return c.Status(400).JSON(fiber.Map{"error": "file too large"})
 	}
 
@@ -255,12 +262,43 @@ func (h *Handler) Stats(c *fiber.Ctx) error {
 }
 
 func (h *Handler) GetConfig(c *fiber.Ctx) error {
+	cfg, err := h.db.GetConfig()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to load config"})
+	}
+
 	return c.JSON(fiber.Map{
-		"compression_enabled": h.cfg.EnableCompression,
-		"max_width":           h.cfg.MaxWidth,
-		"jpeg_quality":        h.cfg.JpegQuality,
-		"max_size":            h.cfg.MaxSize,
+		"compression_enabled": cfg.EnableCompression,
+		"max_width":           cfg.MaxWidth,
+		"jpeg_quality":        cfg.JpegQuality,
+		"max_size":            cfg.MaxSize,
 	})
+}
+
+func (h *Handler) UpdateConfig(c *fiber.Ctx) error {
+	var req storage.Config
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	// 验证参数
+	if req.MaxWidth < 100 || req.MaxWidth > 10000 {
+		return c.Status(400).JSON(fiber.Map{"error": "max_width must be between 100 and 10000"})
+	}
+
+	if req.JpegQuality < 1 || req.JpegQuality > 100 {
+		return c.Status(400).JSON(fiber.Map{"error": "jpeg_quality must be between 1 and 100"})
+	}
+
+	if req.MaxSize < 1024*1024 || req.MaxSize > 100*1024*1024 {
+		return c.Status(400).JSON(fiber.Map{"error": "max_size must be between 1MB and 100MB"})
+	}
+
+	if err := h.db.UpdateConfig(&req); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to update config"})
+	}
+
+	return c.JSON(fiber.Map{"success": true})
 }
 
 func generateID() string {
@@ -271,8 +309,10 @@ func generateID() string {
 
 // compressImage compresses and resizes the image if compression is enabled
 func (h *Handler) compressImage(srcPath, dstPath, mimeType string) error {
-	if !h.cfg.EnableCompression {
-		// If compression is disabled, just copy the file
+	// Load config from database
+	cfg, err := h.db.GetConfig()
+	if err != nil || !cfg.EnableCompression {
+		// If compression is disabled or error, just copy the file
 		src, err := os.Open(srcPath)
 		if err != nil {
 			return err
@@ -322,8 +362,8 @@ func (h *Handler) compressImage(srcPath, dstPath, mimeType string) error {
 	// Resize if width exceeds max width
 	bounds := img.Bounds()
 	width := bounds.Dx()
-	if width > h.cfg.MaxWidth {
-		img = imaging.Resize(img, h.cfg.MaxWidth, 0, imaging.Lanczos)
+	if width > cfg.MaxWidth {
+		img = imaging.Resize(img, cfg.MaxWidth, 0, imaging.Lanczos)
 	}
 
 	// Create output file
@@ -336,7 +376,7 @@ func (h *Handler) compressImage(srcPath, dstPath, mimeType string) error {
 	// Encode with compression based on format
 	switch mimeType {
 	case "image/jpeg":
-		return jpeg.Encode(dst, img, &jpeg.Options{Quality: h.cfg.JpegQuality})
+		return jpeg.Encode(dst, img, &jpeg.Options{Quality: cfg.JpegQuality})
 	case "image/png":
 		// PNG doesn't have quality setting, but re-encoding removes metadata
 		return png.Encode(dst, img)
