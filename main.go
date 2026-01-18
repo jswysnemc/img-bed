@@ -54,6 +54,9 @@ func main() {
 	// Public login endpoint
 	api.Post("/login", h.Login)
 
+	// Public config endpoint
+	api.Get("/config", h.GetConfig)
+
 	// Protected routes - require authentication
 	protected := api.Group("", middleware.Auth(cfg.AuthToken))
 	protected.Get("/stats", h.Stats)

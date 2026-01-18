@@ -188,6 +188,24 @@
         }
     }
 
+    async function loadServerConfig() {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+
+            $('configCompression').textContent = data.compression_enabled ? '已启用' : '已禁用';
+            $('configMaxWidth').textContent = data.max_width + 'px';
+            $('configJpegQuality').textContent = data.jpeg_quality + '%';
+            $('configMaxSize').textContent = formatSize(data.max_size);
+        } catch (e) {
+            console.error('Failed to load config:', e);
+            $('configCompression').textContent = '加载失败';
+            $('configMaxWidth').textContent = '加载失败';
+            $('configJpegQuality').textContent = '加载失败';
+            $('configMaxSize').textContent = '加载失败';
+        }
+    }
+
     async function loadAllImages() {
         try {
             const res = await fetch('/api/images?limit=1000&offset=0', {
@@ -481,20 +499,21 @@
         // 检查是否是重复文件
         if (data.duplicate) {
             showToast('⚠️ 文件已存在，返回已有链接', 3000);
+            // Don't add duplicate to list, just refresh
+            await loadImages();
         } else {
             showToast('上传成功: ' + data.filename);
+            // Add to local list (include hash)
+            allImages.unshift({
+                id: data.id,
+                filename: data.filename,
+                original_name: data.original_name,
+                hash: data.hash,
+                size: data.size,
+                created_at: new Date().toISOString()
+            });
+            applyFilters();
         }
-
-        // Add to local list (include hash)
-        allImages.unshift({
-            id: data.id,
-            filename: data.filename,
-            original_name: data.original_name,
-            hash: data.hash,
-            size: data.size,
-            created_at: new Date().toISOString()
-        });
-        applyFilters();
         loadStats();
 
         return data;
@@ -637,10 +656,13 @@
     batchDeleteBtn.onclick = batchDelete;
 
     // Settings modal
-    settingsBtn.onclick = () => {
+    settingsBtn.onclick = async () => {
         tokenInput.value = getToken();
         defaultFormat.value = getDefaultFormat();
         settingsModal.classList.add('active');
+
+        // Load server config
+        await loadServerConfig();
     };
 
     closeSettings.onclick = () => settingsModal.classList.remove('active');

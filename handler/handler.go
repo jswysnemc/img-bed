@@ -254,6 +254,15 @@ func (h *Handler) Stats(c *fiber.Ctx) error {
 	})
 }
 
+func (h *Handler) GetConfig(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
+		"compression_enabled": h.cfg.EnableCompression,
+		"max_width":           h.cfg.MaxWidth,
+		"jpeg_quality":        h.cfg.JpegQuality,
+		"max_size":            h.cfg.MaxSize,
+	})
+}
+
 func generateID() string {
 	b := make([]byte, 6)
 	rand.Read(b)
