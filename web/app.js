@@ -30,7 +30,6 @@
     const settingsBtn = $('settingsBtn');
     const settingsModal = $('settingsModal');
     const closeSettings = $('closeSettings');
-    const tokenInput = $('tokenInput');
     const toggleToken = $('toggleToken');
     const defaultFormat = $('defaultFormat');
     const saveSettings = $('saveSettings');
