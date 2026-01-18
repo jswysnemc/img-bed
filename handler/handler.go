@@ -5,6 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +17,7 @@ import (
 	"img-bed/config"
 	"img-bed/storage"
 
+	"github.com/disintegration/imaging"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -94,24 +98,46 @@ func (h *Handler) Upload(c *fiber.Ctx) error {
 	id := generateID()
 	filename := id + ext
 
+	// Save to temporary file first
+	tmpPath := filepath.Join(h.cfg.UploadDir, ".tmp_"+filename)
 	dstPath := filepath.Join(h.cfg.UploadDir, filename)
-	dst, err := os.Create(dstPath)
+
+	tmpFile, err := os.Create(tmpPath)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to save file"})
 	}
-	defer dst.Close()
 
-	if _, err := io.Copy(dst, src); err != nil {
-		os.Remove(dstPath)
+	if _, err := io.Copy(tmpFile, src); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
 		return c.Status(500).JSON(fiber.Map{"error": "failed to save file"})
 	}
+	tmpFile.Close()
+
+	// Compress/process the image
+	if err := h.compressImage(tmpPath, dstPath, contentType); err != nil {
+		os.Remove(tmpPath)
+		os.Remove(dstPath)
+		return c.Status(500).JSON(fiber.Map{"error": "failed to process image"})
+	}
+
+	// Remove temporary file
+	os.Remove(tmpPath)
+
+	// Get actual file size after compression
+	fileInfo, err := os.Stat(dstPath)
+	if err != nil {
+		os.Remove(dstPath)
+		return c.Status(500).JSON(fiber.Map{"error": "failed to get file info"})
+	}
+	actualSize := fileInfo.Size()
 
 	img := &storage.Image{
 		ID:           id,
 		Filename:     filename,
 		OriginalName: file.Filename,
 		Hash:         fileHash,
-		Size:         file.Size,
+		Size:         actualSize,
 		MimeType:     contentType,
 		CreatedAt:    time.Now(),
 	}
@@ -132,7 +158,7 @@ func (h *Handler) Upload(c *fiber.Ctx) error {
 		"filename":      filename,
 		"original_name": file.Filename,
 		"hash":          fileHash,
-		"size":          file.Size,
+		"size":          actualSize,
 		"duplicate":     false,
 	})
 }
@@ -232,4 +258,83 @@ func generateID() string {
 	b := make([]byte, 6)
 	rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// compressImage compresses and resizes the image if compression is enabled
+func (h *Handler) compressImage(srcPath, dstPath, mimeType string) error {
+	if !h.cfg.EnableCompression {
+		// If compression is disabled, just copy the file
+		src, err := os.Open(srcPath)
+		if err != nil {
+			return err
+		}
+		defer src.Close()
+
+		dst, err := os.Create(dstPath)
+		if err != nil {
+			return err
+		}
+		defer dst.Close()
+
+		_, err = io.Copy(dst, src)
+		return err
+	}
+
+	// Skip compression for GIF and SVG (preserve animation and vector format)
+	if mimeType == "image/gif" || mimeType == "image/svg+xml" {
+		src, err := os.Open(srcPath)
+		if err != nil {
+			return err
+		}
+		defer src.Close()
+
+		dst, err := os.Create(dstPath)
+		if err != nil {
+			return err
+		}
+		defer dst.Close()
+
+		_, err = io.Copy(dst, src)
+		return err
+	}
+
+	// Open and decode the image
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	img, _, err := image.Decode(src)
+	if err != nil {
+		return err
+	}
+
+	// Resize if width exceeds max width
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	if width > h.cfg.MaxWidth {
+		img = imaging.Resize(img, h.cfg.MaxWidth, 0, imaging.Lanczos)
+	}
+
+	// Create output file
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	// Encode with compression based on format
+	switch mimeType {
+	case "image/jpeg":
+		return jpeg.Encode(dst, img, &jpeg.Options{Quality: h.cfg.JpegQuality})
+	case "image/png":
+		// PNG doesn't have quality setting, but re-encoding removes metadata
+		return png.Encode(dst, img)
+	case "image/webp":
+		// For WebP, just re-encode (removes metadata)
+		return png.Encode(dst, img)
+	default:
+		return fmt.Errorf("unsupported format for compression: %s", mimeType)
+	}
 }
