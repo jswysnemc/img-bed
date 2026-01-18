@@ -382,6 +382,147 @@ header {
     color: var(--danger);
 }
 
+/* ===== Upload Panel (Floating) ===== */
+.upload-panel {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 380px;
+    max-height: 400px;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--border);
+    z-index: 1000;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.upload-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--ink-primary);
+}
+
+.upload-panel-header .btn-close {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ink-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.upload-panel-header .btn-close:hover {
+    background: var(--bg-secondary);
+    color: var(--ink-primary);
+}
+
+.upload-panel-body {
+    padding: 16px;
+    max-height: 340px;
+    overflow-y: auto;
+}
+
+.upload-item {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+}
+
+.upload-item:last-child {
+    margin-bottom: 0;
+}
+
+.upload-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.upload-item-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--ink-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 12px;
+}
+
+.upload-item-status {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.upload-item-status.pending {
+    color: var(--ink-tertiary);
+    background: var(--bg-card);
+}
+
+.upload-item-status.uploading {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.upload-item-status.success {
+    color: var(--success);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.upload-item-status.error {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.upload-item-progress {
+    height: 4px;
+    background: var(--bg-card);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.upload-item-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    transition: width 0.3s ease;
+    border-radius: 2px;
+}
+
+.upload-item-progress-bar.success {
+    background: var(--success);
+}
+
+.upload-item-progress-bar.error {
+    background: var(--danger);
+}
+
 /* ===== Toolbar ===== */
 .toolbar {
     display: flex;
@@ -436,7 +577,7 @@ header {
 }
 
 .toolbar-actions select {
-    padding: 8px 12px;
+    padding: 8px 32px 8px 12px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -446,10 +587,39 @@ header {
     cursor: pointer;
     outline: none;
     box-shadow: var(--shadow-xs);
+    appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path fill="%238a8a8a" d="M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
 }
 
 .toolbar-actions select:hover {
     border-color: var(--border-strong);
+}
+
+/* Settings modal select */
+select {
+    padding: 8px 32px 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path fill="%238a8a8a" d="M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+
+select:hover {
+    border-color: var(--border-strong);
+}
+
+select:focus {
+    border-color: var(--ink-tertiary);
 }
 
 /* ===== Batch Toolbar ===== */
@@ -534,6 +704,7 @@ header {
     aspect-ratio: 4/3;
     overflow: hidden;
     background: var(--bg-secondary);
+    position: relative;
 }
 
 .image-card .thumb img {
@@ -606,6 +777,136 @@ header {
 .image-card.select-mode.selected {
     border-color: var(--accent-soft);
     box-shadow: 0 0 0 2px var(--accent-bg);
+}
+
+/* Quick Actions Overlay */
+.quick-actions {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.image-card .thumb:hover .quick-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.image-card.select-mode .quick-actions {
+    display: none;
+}
+
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.95);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--ink-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    background: white;
+}
+
+.quick-action-btn:active {
+    transform: translateY(0);
+}
+
+.quick-action-btn svg {
+    flex-shrink: 0;
+}
+
+.quick-action-delete {
+    background: var(--danger);
+    color: white;
+}
+
+.quick-action-delete:hover {
+    background: #a83831;
+}
+
+/* ===== Image Viewer ===== */
+.image-viewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+}
+
+.image-viewer.active {
+    display: flex;
+}
+
+.viewer-toolbar {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.viewer-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.viewer-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.viewer-btn:active {
+    transform: scale(0.95);
+}
+
+.viewer-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.viewer-container img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+    cursor: move;
 }
 
 /* ===== Empty State ===== */
@@ -788,6 +1089,15 @@ header {
     font-size: 11px;
     color: var(--ink-tertiary);
     margin-top: 6px;
+}
+
+/* Custom Checkbox */
+input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--ink-primary);
+    flex-shrink: 0;
 }
 
 .input-group {

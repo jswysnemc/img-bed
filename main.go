@@ -54,12 +54,16 @@ func main() {
 	// Public login endpoint
 	api.Post("/login", h.Login)
 
+	// Public config endpoint
+	api.Get("/config", h.GetConfig)
+
 	// Protected routes - require authentication
 	protected := api.Group("", middleware.Auth(cfg.AuthToken))
 	protected.Get("/stats", h.Stats)
 	protected.Get("/images", h.List)
 	protected.Post("/upload", h.Upload)
 	protected.Delete("/images/:id", h.Delete)
+	protected.Put("/config", h.UpdateConfig)
 
 	// Serve uploaded images
 	app.Get("/i/:filename", h.GetImage)

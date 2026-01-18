@@ -15,6 +15,8 @@
     const uploadBox = $('uploadBox');
     const fileInput = $('fileInput');
     const uploadProgress = $('uploadProgress');
+    const uploadPanel = $('uploadPanel');
+    const closeUploadPanel = $('closeUploadPanel');
     const imageGrid = $('imageGrid');
     const loadMore = $('loadMore');
     const emptyState = $('emptyState');
@@ -30,6 +32,7 @@
     const settingsBtn = $('settingsBtn');
     const settingsModal = $('settingsModal');
     const closeSettings = $('closeSettings');
+    const settingsTokenInput = $('settingsTokenInput');
     const toggleToken = $('toggleToken');
     const defaultFormat = $('defaultFormat');
     const saveSettings = $('saveSettings');
@@ -49,6 +52,18 @@
     const urlBbcode = $('urlBbcode');
     const copyDefault = $('copyDefault');
     const deleteImage = $('deleteImage');
+    const viewImage = $('viewImage');
+
+    // Image viewer
+    const imageViewer = $('imageViewer');
+    const viewerImage = $('viewerImage');
+    const viewerContainer = imageViewer ? imageViewer.querySelector('.viewer-container') : null;
+    const viewerZoomIn = $('viewerZoomIn');
+    const viewerZoomOut = $('viewerZoomOut');
+    const viewerRotateLeft = $('viewerRotateLeft');
+    const viewerRotateRight = $('viewerRotateRight');
+    const viewerReset = $('viewerReset');
+    const viewerClose = $('viewerClose');
 
     // Batch selection
     const selectModeBtn = $('selectModeBtn');
@@ -67,21 +82,24 @@
     let selectMode = false;
     let selectedIds = new Set();
 
+    // Image viewer state
+    let viewerState = {
+        scale: 1,
+        rotation: 0,
+        translateX: 0,
+        translateY: 0,
+        isDragging: false,
+        startX: 0,
+        startY: 0
+    };
+
     // Storage helpers
     function getToken() {
         return authToken || '';
     }
 
-    function setToken(token) {
-        localStorage.setItem('imgbed_token', token);
-    }
-
     function getDefaultFormat() {
         return localStorage.getItem('imgbed_format') || 'url';
-    }
-
-    function setDefaultFormat(format) {
-        localStorage.setItem('imgbed_format', format);
     }
 
     // UI helpers
@@ -89,6 +107,49 @@
         toast.textContent = msg;
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    // Custom confirm dialog
+    function showConfirm(message, title = '确认操作') {
+        return new Promise((resolve) => {
+            const confirmModal = $('confirmModal');
+            const confirmTitle = $('confirmTitle');
+            const confirmMessage = $('confirmMessage');
+            const confirmOk = $('confirmOk');
+            const confirmCancel = $('confirmCancel');
+
+            confirmTitle.textContent = title;
+            confirmMessage.textContent = message;
+            confirmModal.classList.add('active');
+
+            const handleOk = () => {
+                confirmModal.classList.remove('active');
+                cleanup();
+                resolve(true);
+            };
+
+            const handleCancel = () => {
+                confirmModal.classList.remove('active');
+                cleanup();
+                resolve(false);
+            };
+
+            const cleanup = () => {
+                confirmOk.removeEventListener('click', handleOk);
+                confirmCancel.removeEventListener('click', handleCancel);
+                confirmModal.removeEventListener('click', handleModalClick);
+            };
+
+            const handleModalClick = (e) => {
+                if (e.target === confirmModal) {
+                    handleCancel();
+                }
+            };
+
+            confirmOk.addEventListener('click', handleOk);
+            confirmCancel.addEventListener('click', handleCancel);
+            confirmModal.addEventListener('click', handleModalClick);
+        });
     }
 
     function formatSize(bytes) {
@@ -188,6 +249,26 @@
         }
     }
 
+    async function loadServerConfig() {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+
+            console.log('Loaded server config:', data);
+
+            const compressionCheckbox = $('configCompression');
+            compressionCheckbox.checked = data.compression_enabled;
+            $('configMaxWidth').value = data.max_width;
+            $('configJpegQuality').value = data.jpeg_quality;
+            $('configMaxSize').value = Math.round(data.max_size / (1024 * 1024)); // Convert bytes to MB
+
+            console.log('Compression checkbox set to:', compressionCheckbox.checked);
+        } catch (e) {
+            console.error('Failed to load config:', e);
+            showToast('加载配置失败');
+        }
+    }
+
     async function loadAllImages() {
         try {
             const res = await fetch('/api/images?limit=1000&offset=0', {
@@ -273,6 +354,33 @@
             card.innerHTML = `
                 <div class="thumb">
                     <img src="/i/${img.filename}" alt="${displayName}" loading="lazy">
+                    <div class="quick-actions">
+                        <button class="quick-action-btn" data-action="copy-url" title="复制直链">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                            </svg>
+                        </button>
+                        <button class="quick-action-btn" data-action="copy-markdown" title="复制 Markdown">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"></path>
+                                <path d="M7 15V9l2 2 2-2v6m4-2 2 2 2-2"></path>
+                            </svg>
+                        </button>
+                        <button class="quick-action-btn" data-action="copy-html" title="复制 HTML">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m18 16 4-4-4-4"></path>
+                                <path d="m6 8-4 4 4 4"></path>
+                                <path d="m14.5 4-5 16"></path>
+                            </svg>
+                        </button>
+                        <button class="quick-action-btn quick-action-delete" data-action="delete" title="删除">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6h18"></path>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="info">
                     <div class="filename" title="${displayName}">${displayName}</div>
@@ -282,7 +390,18 @@
                     </div>
                 </div>
             `;
+
+            // Handle card click
             card.onclick = () => handleCardClick(img, card);
+
+            // Handle quick action clicks
+            const quickActions = card.querySelectorAll('.quick-action-btn');
+            quickActions.forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    handleQuickAction(btn.dataset.action, img);
+                };
+            });
             imageGrid.appendChild(card);
         });
 
@@ -297,6 +416,162 @@
             openImageModal(img);
         }
     }
+
+    // Quick action handler
+    async function handleQuickAction(action, img) {
+        const url = window.location.origin + '/i/' + img.filename;
+        const displayName = img.original_name || img.filename;
+
+        switch (action) {
+            case 'copy-url':
+                navigator.clipboard.writeText(url);
+                showToast('已复制直链');
+                break;
+
+            case 'copy-markdown':
+                const markdown = `![${displayName}](${url})`;
+                navigator.clipboard.writeText(markdown);
+                showToast('已复制 Markdown');
+                break;
+
+            case 'copy-html':
+                const html = `<img src="${url}" alt="${displayName}">`;
+                navigator.clipboard.writeText(html);
+                showToast('已复制 HTML');
+                break;
+
+            case 'delete':
+                if (await showConfirm('确定要删除这张图片吗？', '删除图片')) {
+                    const token = getToken();
+                    if (!token) {
+                        showToast('请先配置认证令牌');
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch('/api/images/' + img.id, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+
+                        if (res.ok) {
+                            showToast('删除成功');
+                            allImages = allImages.filter(i => i.id !== img.id);
+                            applyFilters();
+                            loadStats();
+                        } else {
+                            const data = await res.json();
+                            showToast('删除失败: ' + data.error);
+                        }
+                    } catch (e) {
+                        showToast('删除失败');
+                    }
+                }
+                break;
+        }
+    }
+
+    // Image viewer functions
+    function openImageViewer() {
+        if (!currentImage) return;
+
+        const url = window.location.origin + '/i/' + currentImage.filename;
+        viewerImage.src = url;
+        imageViewer.classList.add('active');
+        resetViewerState();
+        updateViewerTransform();
+    }
+
+    function closeImageViewer() {
+        imageViewer.classList.remove('active');
+        viewerImage.src = '';
+    }
+
+    function resetViewerState() {
+        viewerState.scale = 1;
+        viewerState.rotation = 0;
+        viewerState.translateX = 0;
+        viewerState.translateY = 0;
+    }
+
+    function updateViewerTransform() {
+        viewerImage.style.transform = `translate(${viewerState.translateX}px, ${viewerState.translateY}px) scale(${viewerState.scale}) rotate(${viewerState.rotation}deg)`;
+    }
+
+    function zoomIn() {
+        viewerState.scale = Math.min(viewerState.scale + 0.25, 5);
+        updateViewerTransform();
+    }
+
+    function zoomOut() {
+        viewerState.scale = Math.max(viewerState.scale - 0.25, 0.25);
+        updateViewerTransform();
+    }
+
+    function rotateLeft() {
+        viewerState.rotation -= 90;
+        updateViewerTransform();
+    }
+
+    function rotateRight() {
+        viewerState.rotation += 90;
+        updateViewerTransform();
+    }
+
+    function resetViewer() {
+        resetViewerState();
+        updateViewerTransform();
+    }
+
+    // Image viewer event listeners
+    viewImage.onclick = openImageViewer;
+    viewerClose.onclick = closeImageViewer;
+    viewerZoomIn.onclick = zoomIn;
+    viewerZoomOut.onclick = zoomOut;
+    viewerRotateLeft.onclick = rotateLeft;
+    viewerRotateRight.onclick = rotateRight;
+    viewerReset.onclick = resetViewer;
+
+    // Keyboard shortcuts for viewer
+    imageViewer.onclick = (e) => {
+        if (e.target === imageViewer || e.target === viewerImage) {
+            closeImageViewer();
+        }
+    };
+
+    // Drag support
+    viewerImage.onmousedown = (e) => {
+        e.preventDefault();
+        viewerState.isDragging = true;
+        viewerState.startX = e.clientX - viewerState.translateX;
+        viewerState.startY = e.clientY - viewerState.translateY;
+        viewerImage.style.cursor = 'grabbing';
+    };
+
+    document.onmousemove = (e) => {
+        if (viewerState.isDragging) {
+            viewerState.translateX = e.clientX - viewerState.startX;
+            viewerState.translateY = e.clientY - viewerState.startY;
+            updateViewerTransform();
+        }
+    };
+
+    document.onmouseup = () => {
+        if (viewerState.isDragging) {
+            viewerState.isDragging = false;
+            viewerImage.style.cursor = 'move';
+        }
+    };
+
+    // Wheel zoom
+    viewerContainer.onwheel = (e) => {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+            zoomIn();
+        } else {
+            zoomOut();
+        }
+    };
 
     // Selection functions
     function enterSelectMode() {
@@ -364,7 +639,7 @@
         }
 
         const count = selectedIds.size;
-        if (!confirm(`确定要删除选中的 ${count} 张图片吗？`)) {
+        if (!await showConfirm(`确定要删除选中的 ${count} 张图片吗？`, '批量删除')) {
             return;
         }
 
@@ -413,19 +688,34 @@
     function renderUploadProgress() {
         if (uploadQueue.length === 0) {
             uploadProgress.innerHTML = '';
+            uploadPanel.style.display = 'none';
             return;
         }
 
-        uploadProgress.innerHTML = uploadQueue.slice(-5).map(item => `
-            <div class="progress-item">
-                <span class="name">${item.file.name}</span>
-                <span class="status ${item.status}">${
-                    item.status === 'pending' ? '等待中...' :
-                    item.status === 'uploading' ? '上传中...' :
-                    item.status === 'success' ? '已完成' : '失败'
-                }</span>
-            </div>
-        `).join('');
+        uploadPanel.style.display = 'block';
+
+        uploadProgress.innerHTML = uploadQueue.map(item => {
+            const statusText = {
+                'pending': '等待中',
+                'uploading': '上传中',
+                'success': '完成',
+                'error': '失败'
+            }[item.status] || '未知';
+
+            const progress = item.progress || 0;
+
+            return `
+                <div class="upload-item">
+                    <div class="upload-item-header">
+                        <div class="upload-item-name" title="${item.file.name}">${item.file.name}</div>
+                        <div class="upload-item-status ${item.status}">${statusText}</div>
+                    </div>
+                    <div class="upload-item-progress">
+                        <div class="upload-item-progress-bar ${item.status}" style="width: ${progress}%"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     async function processUploadQueue() {
@@ -439,7 +729,7 @@
         renderUploadProgress();
 
         try {
-            await uploadFile(pending.file);
+            await uploadFile(pending.file, pending);
             pending.status = 'success';
         } catch (e) {
             pending.status = 'error';
@@ -450,12 +740,12 @@
         setTimeout(() => {
             uploadQueue = uploadQueue.filter(i => i.status !== 'success');
             renderUploadProgress();
-        }, 2000);
+        }, 3000);
 
         processUploadQueue();
     }
 
-    async function uploadFile(file) {
+    async function uploadFile(file, queueItem) {
         const token = getToken();
         if (!token) {
             showToast('请先在设置中配置认证令牌');
@@ -465,39 +755,62 @@
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch('/api/upload', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token },
-            body: formData
+        // Use XMLHttpRequest for real upload progress
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+
+            // Upload progress event
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    queueItem.progress = Math.round((e.loaded / e.total) * 100);
+                    renderUploadProgress();
+                }
+            };
+
+            xhr.onload = async () => {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+
+                    if (xhr.status !== 200) {
+                        showToast('上传失败: ' + data.error);
+                        reject(new Error(data.error));
+                        return;
+                    }
+
+                    // 检查是否是重复文件
+                    if (data.duplicate) {
+                        showToast('文件已存在，返回已有链接', 3000);
+                        // Don't add duplicate to list, just refresh
+                        await loadAllImages();
+                    } else {
+                        showToast('上传成功: ' + data.filename);
+                        // Add to local list (include hash)
+                        allImages.unshift({
+                            id: data.id,
+                            filename: data.filename,
+                            original_name: data.original_name,
+                            hash: data.hash,
+                            size: data.size,
+                            created_at: new Date().toISOString()
+                        });
+                        applyFilters();
+                    }
+                    loadStats();
+
+                    resolve(data);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+
+            xhr.onerror = () => {
+                reject(new Error('Network error'));
+            };
+
+            xhr.open('POST', '/api/upload');
+            xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+            xhr.send(formData);
         });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-            showToast('上传失败: ' + data.error);
-            throw new Error(data.error);
-        }
-
-        // 检查是否是重复文件
-        if (data.duplicate) {
-            showToast('⚠️ 文件已存在，返回已有链接', 3000);
-        } else {
-            showToast('上传成功: ' + data.filename);
-        }
-
-        // Add to local list (include hash)
-        allImages.unshift({
-            id: data.id,
-            filename: data.filename,
-            original_name: data.original_name,
-            hash: data.hash,
-            size: data.size,
-            created_at: new Date().toISOString()
-        });
-        applyFilters();
-        loadStats();
-
-        return data;
     }
 
     // Image modal
@@ -613,6 +926,12 @@
         }
     });
 
+    // Upload panel close button
+    closeUploadPanel.onclick = () => {
+        uploadQueue = [];
+        renderUploadProgress();
+    };
+
     // Search and sort
     let searchTimeout;
     searchInput.oninput = () => {
@@ -637,27 +956,101 @@
     batchDeleteBtn.onclick = batchDelete;
 
     // Settings modal
-    settingsBtn.onclick = () => {
-        tokenInput.value = getToken();
+    settingsBtn.onclick = async () => {
+        settingsTokenInput.value = getToken();
         defaultFormat.value = getDefaultFormat();
         settingsModal.classList.add('active');
+
+        // Load server config
+        await loadServerConfig();
     };
 
-    closeSettings.onclick = () => settingsModal.classList.remove('active');
+    closeSettings.onclick = () => {
+        settingsModal.classList.remove('active');
+        // Reset token input to password type when closing
+        settingsTokenInput.type = 'password';
+    };
 
     settingsModal.onclick = (e) => {
-        if (e.target === settingsModal) settingsModal.classList.remove('active');
+        if (e.target === settingsModal) {
+            settingsModal.classList.remove('active');
+            // Reset token input to password type when closing
+            settingsTokenInput.type = 'password';
+        }
     };
 
     toggleToken.onclick = () => {
-        tokenInput.type = tokenInput.type === 'password' ? 'text' : 'password';
+        settingsTokenInput.type = settingsTokenInput.type === 'password' ? 'text' : 'password';
     };
 
-    saveSettings.onclick = () => {
-        setToken(tokenInput.value);
-        setDefaultFormat(defaultFormat.value);
-        settingsModal.classList.remove('active');
-        showToast('设置已保存');
+    saveSettings.onclick = async () => {
+        const token = settingsTokenInput.value;
+        const format = defaultFormat.value;
+
+        // Save local settings
+        if (token) {
+            localStorage.setItem('authToken', token);
+            authToken = token;
+        }
+        localStorage.setItem('defaultFormat', format);
+
+        // Save server config
+        if (authToken) {
+            const compressionCheckbox = $('configCompression');
+            const config = {
+                enable_compression: compressionCheckbox.checked,
+                max_width: parseInt($('configMaxWidth').value),
+                jpeg_quality: parseInt($('configJpegQuality').value),
+                max_size: parseInt($('configMaxSize').value) * 1024 * 1024 // Convert MB to bytes
+            };
+
+            console.log('Saving config:', config);
+
+            // Validate
+            if (config.max_width < 100 || config.max_width > 10000) {
+                showToast('最大宽度必须在 100-10000 之间');
+                return;
+            }
+
+            if (config.jpeg_quality < 1 || config.jpeg_quality > 100) {
+                showToast('JPEG质量必须在 1-100 之间');
+                return;
+            }
+
+            if (config.max_size < 1024 * 1024 || config.max_size > 100 * 1024 * 1024) {
+                showToast('最大文件大小必须在 1-100 MB 之间');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + authToken
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                const data = await res.json();
+                console.log('Save response:', data);
+
+                if (res.ok && data.success) {
+                    showToast('设置已保存');
+                    settingsModal.classList.remove('active');
+                    // Reload config to verify
+                    await loadServerConfig();
+                } else {
+                    showToast('保存失败: ' + (data.error || '未知错误'));
+                }
+            } catch (e) {
+                console.error('Failed to save config:', e);
+                showToast('保存失败');
+            }
+        } else {
+            showToast('设置已保存');
+            settingsModal.classList.remove('active');
+        }
     };
 
     // Image modal
@@ -684,8 +1077,8 @@
         showToast('已复制');
     };
 
-    deleteImage.onclick = () => {
-        if (confirm('确定要删除这张图片吗？')) {
+    deleteImage.onclick = async () => {
+        if (await showConfirm('确定要删除这张图片吗？', '删除图片')) {
             deleteCurrentImage();
         }
     };
@@ -701,8 +1094,8 @@
         }
     };
 
-    logoutBtn.onclick = () => {
-        if (confirm('确定要退出登录吗？')) {
+    logoutBtn.onclick = async () => {
+        if (await showConfirm('确定要退出登录吗？', '退出登录')) {
             logout();
         }
     };
